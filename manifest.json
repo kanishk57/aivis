@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AI Token Tracker",
+  "name": "AIVIS",
   "version": "1.0.0",
-  "description": "Track token usage, rate limits, and context across ChatGPT, Claude, and Gemini — 100% local.",
+  "description": "AIVIS monitors usage, limits, and context across ChatGPT, Claude, and Gemini.",
   "permissions": [
     "storage",
     "scripting",

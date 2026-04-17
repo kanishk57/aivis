@@ -1,7 +1,7 @@
-# AI Token Tracker — Chrome Extension
+# AIVIS — Chrome Extension
 
-Track token usage, rate limits, and context across ChatGPT, Claude, and Gemini.
-**100% local. No cloud. No account. No data leaves your machine.**
+Track usage, rate limits, and context across ChatGPT, Claude, and Gemini.
+No account setup required.
 
 ---
 
@@ -42,6 +42,22 @@ After installing, click the extension icon and:
 
 ---
 
+## Screenshots
+
+### Overview
+
+![Overview](ss/Screenshot%20From%202026-04-17%2020-48-35.png)
+
+### Gemini Tab
+
+![Gemini Tab](ss/Screenshot%20From%202026-04-17%2020-48-48.png)
+
+### Context Tab
+
+![Context Tab](ss/Screenshot%20From%202026-04-17%2020-48-59.png)
+
+---
+
 ## How it works
 
 The extension injects content scripts into ChatGPT, Claude, and Gemini pages.
@@ -53,7 +69,7 @@ and extract or estimate token counts.
 - ChatGPT: ~85% accurate (uses usage headers when available, falls back to 4 chars/token)
 - Gemini: ~80% accurate (uses usageMetadata when available, falls back to DOM text)
 
-All data is stored in `chrome.storage.local` — it never leaves your browser.
+All data is stored in `chrome.storage` for this extension.
 
 ---
 
@@ -84,7 +100,6 @@ All data is stored in `chrome.storage.local` — it never leaves your browser.
 ## Privacy
 
 - Zero network requests from this extension
-- All storage is local (`chrome.storage.local`)
 - No analytics, no telemetry
 - Clear all data anytime via the "Clear data" button
 
@@ -94,5 +109,5 @@ All data is stored in `chrome.storage.local` — it never leaves your browser.
 
 - Token counts for ChatGPT and Gemini are **estimates** (the actual counts are in backend systems you can't directly access from the browser)
 - Rate limits are hardcoded approximations — OpenAI/Anthropic/Google don't expose live limit data to the browser
-- The extension resets daily stats at midnight local time
+- The extension resets daily stats at midnight
 - If you clear browser data, extension storage is also cleared
