@@ -33,6 +33,11 @@ document.getElementById('btn-clear').addEventListener('click', () => {
   }
 });
 
+document.getElementById('tracking-toggle').addEventListener('change', (e) => {
+  const enabled = !!e.target.checked;
+  chrome.runtime.sendMessage({ type: 'SET_TRACKING_ENABLED', enabled }, () => loadStats());
+});
+
 // --- Helpers ---
 function fmtK(n) {
   if (n === undefined || n === null) return '—';
@@ -83,6 +88,11 @@ function renderAll(stats) {
 
   // Reset timer
   setText('reset-timer', getResetStr(stats.next_daily_reset));
+
+  const enabled = stats.tracking_enabled !== false;
+  const toggle = document.getElementById('tracking-toggle');
+  if (toggle) toggle.checked = enabled;
+  setText('tracking-label', enabled ? 'Tracking ON' : 'Tracking OFF');
 
   // Restore tier selectors
   for (const p of platforms) {

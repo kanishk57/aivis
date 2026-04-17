@@ -60,9 +60,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     chrome.storage.local.set({ [`${msg.platform}_tier`]: msg.tier }).then(() => sendResponse({ ok: true }));
     return true;
   }
+  if (msg.type === 'SET_TRACKING_ENABLED') {
+    chrome.storage.local.set({ tracking_enabled: !!msg.enabled }).then(() => sendResponse({ ok: true }));
+    return true;
+  }
 });
 
 async function handleTrackRequest(data) {
+  const { tracking_enabled: trackingEnabled } = await chrome.storage.local.get(['tracking_enabled']);
+  if (trackingEnabled === false) {
+    return { ok: true, skipped: true, reason: 'tracking-disabled' };
+  }
+
   const { platform, model, inputTokens, outputTokens, timestamp, conversationId } = data;
   const now = timestamp || Date.now();
   const dayKey = `${platform}_daily`;
@@ -141,7 +150,12 @@ async function getAllStats() {
   const now = Date.now();
   const nextReset = getNextMidnight();
 
-  const result = { platforms: {}, next_daily_reset: nextReset, next_reset_in: formatDuration(nextReset - now) };
+  const result = {
+    platforms: {},
+    next_daily_reset: nextReset,
+    next_reset_in: formatDuration(nextReset - now),
+    tracking_enabled: data.tracking_enabled !== false
+  };
 
   for (const p of platforms) {
     const tier = data[`${p}_tier`] || 'free';
