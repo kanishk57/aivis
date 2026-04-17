@@ -190,4 +190,12 @@ function renderAll(stats) {
 
 // Initial load and auto-refresh
 loadStats();
-setInterval(loadStats, 5000);
+setInterval(loadStats, 1000);
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local') return;
+  const keys = Object.keys(changes || {});
+  if (keys.some(k => k.endsWith('_daily') || k.endsWith('_session') || k.endsWith('_history') || k.endsWith('_tier'))) {
+    loadStats();
+  }
+});

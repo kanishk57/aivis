@@ -10,6 +10,7 @@
   let lastObservedSignature = null;
   let lastObservedAt = 0;
   let lastSentSignature = null;
+  let lastNetworkAt = 0;
   let checkTimer = null;
 
   function estimateTokens(text) {
@@ -36,6 +37,8 @@
   }
 
   function trackIfStable() {
+    if (Date.now() - lastNetworkAt < 10000) return;
+
     const userText = getLatestText('[data-testid="user-message"], .font-user-message');
     const assistantText = getLatestText('[data-testid="assistant-message"], .font-claude-message, [data-testid*="assistant"]');
     if (!assistantText) return;
@@ -72,6 +75,54 @@
     lastSentSignature = signature;
   }
 
+  function trackFromNetworkPayload(payload) {
+    const requestBody = payload?.requestBody || '';
+    const responseText = payload?.responseText || '';
+    if (!requestBody && !responseText) return;
+
+    const signature = hashString(`${payload.url || ''}|${requestBody.slice(-300)}|${responseText.slice(-800)}`);
+    if (signature === lastSentSignature) return;
+
+    const inputTokens = estimateTokens(requestBody);
+    const outputTokens = estimateTokens(responseText);
+    if (inputTokens === 0 && outputTokens === 0) return;
+
+    lastNetworkAt = Date.now();
+    lastSentSignature = signature;
+
+    chrome.runtime.sendMessage({
+      type: 'TRACK_REQUEST',
+      data: {
+        platform: PLATFORM,
+        model: currentModel,
+        inputTokens,
+        outputTokens,
+        timestamp: Date.now(),
+        conversationId
+      }
+    });
+  }
+
+  function injectHookScript() {
+    if (document.getElementById('ai-token-tracker-hook')) return;
+    const script = document.createElement('script');
+    script.id = 'ai-token-tracker-hook';
+    script.src = chrome.runtime.getURL('content/injected-hook.js');
+    script.onload = () => script.remove();
+    (document.documentElement || document.head).appendChild(script);
+  }
+
+  window.addEventListener('message', (event) => {
+    if (event.source !== window) return;
+    const data = event.data;
+    if (!data || data.source !== 'ai-token-tracker-net' || data.platform !== PLATFORM) return;
+    if (data.payload?.type === 'HOOK_READY') {
+      console.log('[AI Tracker] Claude network hook ready');
+      return;
+    }
+    trackFromNetworkPayload(data.payload);
+  });
+
   function scheduleCheck() {
     clearTimeout(checkTimer);
     checkTimer = setTimeout(trackIfStable, 800);
@@ -92,6 +143,7 @@
   const match = location.pathname.match(/\/chat\/([a-z0-9-]+)/);
   if (match) conversationId = match[1];
 
+  injectHookScript();
   setInterval(trackIfStable, 2000);
 
   console.log('[AI Tracker] Claude DOM tracker loaded');
