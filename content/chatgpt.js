@@ -1,0 +1,102 @@
+// content/chatgpt.js — injected into chat.openai.com and chatgpt.com
+// Tracks requests via DOM observation (more reliable than fetch interception)
+
+(function () {
+  'use strict';
+
+  const PLATFORM = 'chatgpt';
+  let currentModel = 'gpt-4o';
+  let conversationId = null;
+  let lastObservedSignature = null;
+  let lastObservedAt = 0;
+  let lastSentSignature = null;
+  let checkTimer = null;
+
+  function estimateTokens(text) {
+    if (!text) return 0;
+    return Math.ceil(text.length / 4);
+  }
+
+  function hashString(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) + h) + str.charCodeAt(i);
+      h |= 0;
+    }
+    return String(h);
+  }
+
+  function getLatestText(selector) {
+    const nodes = Array.from(document.querySelectorAll(selector));
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const txt = (nodes[i].innerText || '').trim();
+      if (txt) return txt;
+    }
+    return '';
+  }
+
+  function trackIfStable() {
+    const userText = getLatestText('[data-message-author-role="user"]');
+    const assistantText = getLatestText('[data-message-author-role="assistant"]');
+    if (!assistantText) return;
+
+    const signatureBase = `${conversationId || location.pathname}|${userText.slice(-300)}|${assistantText.slice(-800)}`;
+    const signature = hashString(signatureBase);
+    const now = Date.now();
+
+    if (signature !== lastObservedSignature) {
+      lastObservedSignature = signature;
+      lastObservedAt = now;
+      return;
+    }
+
+    if (signature === lastSentSignature) return;
+    if (now - lastObservedAt < 1800) return;
+
+    const inputTokens = estimateTokens(userText);
+    const outputTokens = estimateTokens(assistantText);
+    if (inputTokens === 0 && outputTokens === 0) return;
+
+    chrome.runtime.sendMessage({
+      type: 'TRACK_REQUEST',
+      data: {
+        platform: PLATFORM,
+        model: currentModel,
+        inputTokens,
+        outputTokens,
+        timestamp: now,
+        conversationId
+      }
+    });
+
+    lastSentSignature = signature;
+  }
+
+  function scheduleCheck() {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(trackIfStable, 800);
+  }
+
+  let lastUrl = location.href;
+  const observer = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      const match = location.pathname.match(/\/c\/([a-z0-9-]+)/);
+      if (match) conversationId = match[1];
+    }
+
+    const modelEl = document.querySelector('[data-testid="model-switcher-dropdown-button"] span, .model-switcher button span');
+    if (modelEl) currentModel = modelEl.innerText.toLowerCase().replace(/\s+/g, '-');
+
+    scheduleCheck();
+  });
+
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  const match = location.pathname.match(/\/c\/([a-z0-9-]+)/);
+  if (match) conversationId = match[1];
+
+  setInterval(trackIfStable, 2000);
+
+  console.log('[AI Tracker] ChatGPT DOM tracker loaded');
+})();

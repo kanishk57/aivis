@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Token Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #22263a;
+    --border: #2e3248;
+    --text: #e8eaf6;
+    --muted: #7b82a8;
+    --accent: #7c6ff7;
+    --accent2: #5cc8ff;
+    --green: #3ecf8e;
+    --amber: #f5a623;
+    --red: #f46060;
+    --chatgpt: #74aa9c;
+    --claude: #d97757;
+    --gemini: #4285f4;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 420px;
+    min-height: 480px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .header-left { display: flex; align-items: center; gap: 8px; }
+  .logo {
+    width: 28px; height: 28px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .title { font-weight: 600; font-size: 14px; }
+  .subtitle { color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .reset-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 8px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    border: none;
+    background: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.15s;
+    text-align: center;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+  }
+  .dot-chatgpt { background: var(--chatgpt); }
+  .dot-claude  { background: var(--claude); }
+  .dot-gemini  { background: var(--gemini); }
+
+  /* Panels */
+  .panel { display: none; padding: 14px 16px; }
+  .panel.active { display: block; }
+
+  /* Overview grid */
+  .overview-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .platform-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 10px 8px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .platform-card:hover { border-color: var(--accent); }
+  .pc-header { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
+  .pc-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .pc-name { font-size: 11px; font-weight: 600; color: var(--text); }
+  .pc-stat { font-size: 21px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
+  .pc-label { font-size: 10px; color: var(--muted); }
+  .pc-tier {
+    display: inline-block;
+    margin-top: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Summary section */
+  .section-title {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* Bar rows */
+  .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .stat-label { width: 90px; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .bar-track {
+    flex: 1;
+    height: 5px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    min-width: 2px;
+  }
+  .bar-fill.green  { background: var(--green); }
+  .bar-fill.amber  { background: var(--amber); }
+  .bar-fill.red    { background: var(--red); }
+  .stat-val { font-size: 11px; font-weight: 600; width: 44px; text-align: right; flex-shrink: 0; }
+
+  /* Detail panel */
+  .detail-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  }
+  .detail-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .detail-name { font-size: 15px; font-weight: 600; }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .info-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 11px;
+  }
+  .info-card-label { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+  .info-card-val { font-size: 18px; font-weight: 700; }
+  .info-card-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* Rate limit cards */
+  .limit-row { margin-bottom: 10px; }
+  .limit-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .limit-name { font-size: 11px; color: var(--muted); }
+  .limit-val { font-size: 11px; font-weight: 600; }
+
+  /* Tier selector */
+  .tier-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .tier-row label { font-size: 11px; color: var(--muted); }
+  .tier-select {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 5px 8px;
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Context summary panel */
+  .ctx-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .ctx-platform-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .ctx-platform-name { font-size: 11px; font-weight: 600; width: 62px; flex-shrink: 0; }
+  .ctx-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .ctx-fill { height: 100%; border-radius: 3px; }
+  .ctx-label { font-size: 10px; color: var(--muted); width: 72px; text-align: right; flex-shrink: 0; }
+
+  /* Footer */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .footer-note { font-size: 10px; color: var(--muted); }
+  .btn-clear {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    padding: 3px 10px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 28px 0;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .empty .icon { font-size: 28px; margin-bottom: 8px; }
+
+  /* History list */
+  .history-list { max-height: 280px; overflow-y: auto; }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-item:last-child { border-bottom: none; }
+  .h-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .h-time { font-size: 10px; color: var(--muted); width: 50px; flex-shrink: 0; }
+  .h-model { font-size: 11px; flex: 1; color: var(--text); }
+  .h-tokens { font-size: 11px; font-weight: 600; color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">⚡</div>
+    <div>
+      <div class="title">AI Token Tracker</div>
+      <div class="subtitle">100% local · no cloud</div>
+    </div>
+  </div>
+  <div class="reset-badge">🔄 resets in <span id="reset-timer">—</span></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="overview">Overview</button>
+  <button class="tab" data-tab="chatgpt"><span class="dot dot-chatgpt"></span>ChatGPT</button>
+  <button class="tab" data-tab="claude"><span class="dot dot-claude"></span>Claude</button>
+  <button class="tab" data-tab="gemini"><span class="dot dot-gemini"></span>Gemini</button>
+  <button class="tab" data-tab="context">Context</button>
+</div>
+
+<!-- Overview Panel -->
+<div class="panel active" id="panel-overview">
+  <div class="overview-grid">
+    <div class="platform-card" id="card-chatgpt" onclick="switchTab('chatgpt')">
+      <div class="pc-header"><span class="pc-dot" style="background:var(--chatgpt)"></span><span class="pc-name">ChatGPT</span></div>
+      <div class="pc-stat" id="ov-chatgpt-req">—</div>
+      <div class="pc-label">requests today</div>
+      <div class="pc-tier" id="ov-chatgpt-tier">free</div>
+    </div>
+    <div class="platform-card" id="card-claude" onclick="switchTab('claude')">
+      <div class="pc-header"><span class="pc-dot" style="background:var(--claude)"></span><span class="pc-name">Claude</span></div>
+      <div class="pc-stat" id="ov-claude-req">—</div>
+      <div class="pc-label">requests today</div>
+      <div class="pc-tier" id="ov-claude-tier">free</div>
+    </div>
+    <div class="platform-card" id="card-gemini" onclick="switchTab('gemini')">
+      <div class="pc-header"><span class="pc-dot" style="background:var(--gemini)"></span><span class="pc-name">Gemini</span></div>
+      <div class="pc-stat" id="ov-gemini-req">—</div>
+      <div class="pc-label">requests today</div>
+      <div class="pc-tier" id="ov-gemini-tier">free</div>
+    </div>
+  </div>
+
+  <div class="section-title">Daily limits used</div>
+
+  <div class="stat-row">
+    <div class="stat-label">ChatGPT RPD</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-chatgpt-rpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-chatgpt-rpd">—</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label">Claude RPD</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-claude-rpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-claude-rpd">—</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label">Gemini RPD</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-gemini-rpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-gemini-rpd">—</div>
+  </div>
+
+  <div class="stat-row" style="margin-top:12px">
+    <div class="stat-label">ChatGPT tokens</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-chatgpt-tpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-chatgpt-tpd">—</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label">Claude tokens</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-claude-tpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-claude-tpd">—</div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-label">Gemini tokens</div>
+    <div class="bar-track"><div class="bar-fill green" id="bar-gemini-tpd" style="width:0%"></div></div>
+    <div class="stat-val" id="val-gemini-tpd">—</div>
+  </div>
+</div>
+
+<!-- ChatGPT Panel -->
+<div class="panel" id="panel-chatgpt">
+  <div class="detail-header">
+    <span class="detail-dot" style="background:var(--chatgpt)"></span>
+    <span class="detail-name">ChatGPT</span>
+  </div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">Requests today</div>
+      <div class="info-card-val" id="d-chatgpt-rpd">—</div>
+      <div class="info-card-sub" id="d-chatgpt-rpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Tokens today</div>
+      <div class="info-card-val" id="d-chatgpt-tpd">—</div>
+      <div class="info-card-sub" id="d-chatgpt-tpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">This minute (RPM)</div>
+      <div class="info-card-val" id="d-chatgpt-rpm">—</div>
+      <div class="info-card-sub" id="d-chatgpt-rpm-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Session requests</div>
+      <div class="info-card-val" id="d-chatgpt-sess">—</div>
+      <div class="info-card-sub">this session</div>
+    </div>
+  </div>
+
+  <div class="section-title">Rate limits</div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / min (RPM)</span>
+      <span class="limit-val" id="d-chatgpt-rpm-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-chatgpt-rpm" style="width:0%"></div></div>
+  </div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / day (RPD)</span>
+      <span class="limit-val" id="d-chatgpt-rpd-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-chatgpt-rpd" style="width:0%"></div></div>
+  </div>
+
+  <div class="section-title" style="margin-top:12px">Credits reset</div>
+  <div style="font-size:13px;color:var(--accent2);font-weight:600" id="d-chatgpt-reset">—</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:2px">at midnight local time</div>
+
+  <div class="tier-row">
+    <label>Your plan:</label>
+    <select class="tier-select" id="tier-chatgpt" onchange="setTier('chatgpt', this.value)">
+      <option value="free">Free</option>
+      <option value="plus">Plus / Pro</option>
+    </select>
+  </div>
+</div>
+
+<!-- Claude Panel -->
+<div class="panel" id="panel-claude">
+  <div class="detail-header">
+    <span class="detail-dot" style="background:var(--claude)"></span>
+    <span class="detail-name">Claude</span>
+  </div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">Requests today</div>
+      <div class="info-card-val" id="d-claude-rpd">—</div>
+      <div class="info-card-sub" id="d-claude-rpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Tokens today</div>
+      <div class="info-card-val" id="d-claude-tpd">—</div>
+      <div class="info-card-sub" id="d-claude-tpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">This minute (RPM)</div>
+      <div class="info-card-val" id="d-claude-rpm">—</div>
+      <div class="info-card-sub" id="d-claude-rpm-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Session requests</div>
+      <div class="info-card-val" id="d-claude-sess">—</div>
+      <div class="info-card-sub">this session</div>
+    </div>
+  </div>
+  <div class="section-title">Rate limits</div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / min (RPM)</span>
+      <span class="limit-val" id="d-claude-rpm-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-claude-rpm" style="width:0%"></div></div>
+  </div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / day (RPD)</span>
+      <span class="limit-val" id="d-claude-rpd-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-claude-rpd" style="width:0%"></div></div>
+  </div>
+  <div class="section-title" style="margin-top:12px">Credits reset</div>
+  <div style="font-size:13px;color:var(--accent2);font-weight:600" id="d-claude-reset">—</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:2px">at midnight local time</div>
+  <div class="tier-row">
+    <label>Your plan:</label>
+    <select class="tier-select" id="tier-claude" onchange="setTier('claude', this.value)">
+      <option value="free">Free</option>
+      <option value="pro">Pro</option>
+    </select>
+  </div>
+</div>
+
+<!-- Gemini Panel -->
+<div class="panel" id="panel-gemini">
+  <div class="detail-header">
+    <span class="detail-dot" style="background:var(--gemini)"></span>
+    <span class="detail-name">Gemini</span>
+  </div>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="info-card-label">Requests today</div>
+      <div class="info-card-val" id="d-gemini-rpd">—</div>
+      <div class="info-card-sub" id="d-gemini-rpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Tokens today</div>
+      <div class="info-card-val" id="d-gemini-tpd">—</div>
+      <div class="info-card-sub" id="d-gemini-tpd-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">This minute (RPM)</div>
+      <div class="info-card-val" id="d-gemini-rpm">—</div>
+      <div class="info-card-sub" id="d-gemini-rpm-lim">of — limit</div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-label">Session requests</div>
+      <div class="info-card-val" id="d-gemini-sess">—</div>
+      <div class="info-card-sub">this session</div>
+    </div>
+  </div>
+  <div class="section-title">Rate limits</div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / min (RPM)</span>
+      <span class="limit-val" id="d-gemini-rpm-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-gemini-rpm" style="width:0%"></div></div>
+  </div>
+  <div class="limit-row">
+    <div class="limit-header">
+      <span class="limit-name">Requests / day (RPD)</span>
+      <span class="limit-val" id="d-gemini-rpd-rem">— remaining</span>
+    </div>
+    <div class="bar-track" style="height:6px"><div class="bar-fill green" id="bar2-gemini-rpd" style="width:0%"></div></div>
+  </div>
+  <div class="section-title" style="margin-top:12px">Credits reset</div>
+  <div style="font-size:13px;color:var(--accent2);font-weight:600" id="d-gemini-reset">—</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:2px">at midnight local time</div>
+  <div class="tier-row">
+    <label>Your plan:</label>
+    <select class="tier-select" id="tier-gemini" onchange="setTier('gemini', this.value)">
+      <option value="free">Free</option>
+      <option value="pro">Advanced</option>
+    </select>
+  </div>
+</div>
+
+<!-- Context Panel -->
+<div class="panel" id="panel-context">
+  <div class="section-title">Context window usage (estimated)</div>
+
+  <div class="ctx-bar">
+    <span class="ctx-platform-dot" style="background:var(--chatgpt)"></span>
+    <span class="ctx-platform-name">ChatGPT</span>
+    <div class="ctx-track"><div class="ctx-fill" id="ctx-chatgpt" style="width:0%;background:var(--chatgpt)"></div></div>
+    <span class="ctx-label" id="ctx-chatgpt-label">— / 128k</span>
+  </div>
+  <div class="ctx-bar">
+    <span class="ctx-platform-dot" style="background:var(--claude)"></span>
+    <span class="ctx-platform-name">Claude</span>
+    <div class="ctx-track"><div class="ctx-fill" id="ctx-claude" style="width:0%;background:var(--claude)"></div></div>
+    <span class="ctx-label" id="ctx-claude-label">— / 200k</span>
+  </div>
+  <div class="ctx-bar">
+    <span class="ctx-platform-dot" style="background:var(--gemini)"></span>
+    <span class="ctx-platform-name">Gemini</span>
+    <div class="ctx-track"><div class="ctx-fill" id="ctx-gemini" style="width:0%;background:var(--gemini)"></div></div>
+    <span class="ctx-label" id="ctx-gemini-label">— / 1M</span>
+  </div>
+
+  <div class="section-title" style="margin-top:16px">Recent requests (last 10)</div>
+  <div class="history-list" id="history-list">
+    <div class="empty"><div class="icon">💬</div>No requests tracked yet.<br>Open a chat and start a conversation.</div>
+  </div>
+</div>
+
+<div class="footer">
+  <span class="footer-note">All data stored locally only</span>
+  <button class="btn-clear" id="btn-clear">Clear data</button>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
